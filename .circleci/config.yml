@@ -25,10 +25,7 @@ jobs:
           SCALAR_CASSANDRA_HOST: 127.0.0.1
           SCALAR_CASSANDRA_PORT: 9042
 
-    #      - image: moon004/scalardl:1.0
-    #        auth:
-    #          username: moon004
-    #          password: $DOCKERHUB_PASSWORD
+      - image: envoyproxy/envoy:v1.10.0
 
     working_directory: ~/scalardl-web-client-sdk
 
@@ -57,17 +54,6 @@ jobs:
           command: dockerize -wait tcp://127.0.0.1:9042 -timeout 1m
 
       - run:
-          name: Create scalar-dlt network
-          command: docker network create -d bridge scalar-dlt
-
-      - run:
-          name: Pull custom image
-          command: |
-            docker login -u moon004 -p $DOCKERHUB_PASSWORD
-            docker pull moon004/scalardl:1.0
-            docker run --name envoy --network=scalar-dlt -d -p 80:80 -p 443:443 -p 8080:8080 -p 8443:8443 moon004/scalardl:1.0
-
-      - run:
           name: Run cqlsh
           command: cqlsh -f ./.circleci/create_schema.cql 127.0.0.1 9042
 
@@ -80,6 +66,11 @@ jobs:
           command: docker ps
 
       - run:
+          name: docker copy and restart Envoy
+          command: |
+            DOCKER_HOST=tcp://127.0.0.1:2376 docker cp ./.circleci/envoy.yaml envoy:/etc/envoy/envoy.yaml
+
+      - run:
           name: Install Dependencies
           command: npm install
 
@@ -88,7 +79,6 @@ jobs:
           paths:
             - ./node_modules
 
-      # run tests
       - run:
           command: npm test
           environment:
